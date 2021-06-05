@@ -1,0 +1,19 @@
+{
+  "name": "src",
+  "version": "1.0.0",
+  "description": "",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "dependencies": {
+    "concat-stream": "^2.0.0",
+    "fs": "0.0.1-security",
+    "puppeteer": "^10.0.0",
+    "strftime": "^0.10.0",
+    "toml": "^3.0.0"
+  }
+}

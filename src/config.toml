@@ -1,0 +1,11 @@
+title = "Example config file for this bot."
+
+[login]
+member_number = 123456
+password = "password123"
+url = "https://mygolfclub.com/login/"
+
+[booking]
+number_of_players = 2
+time = "9:00 AM"
+days_from_now = 5
