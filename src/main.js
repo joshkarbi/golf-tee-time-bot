@@ -1,7 +1,7 @@
 /**
  * Golf Tee Time Booking Bot.
  * 
- * CONFIG_FILE=your_config.toml; node main.js
+ * docker-compose up --build
  */
 
 var puppeteer = require("puppeteer");
@@ -10,139 +10,160 @@ var concat = require('concat-stream');
 var fs = require('fs');
 var strftime = require('strftime');
 
-CONFIG = {};
+const wait = (timeToDelay) => new Promise((resolve) => setTimeout(resolve, timeToDelay));
 
-function timeout(ms) {
-    return new Promise(resolve => setTimeout(resolve, ms));
-}
+async function get_config() {
+    var config = {};
 
-(async () => {
-    console.log("Tee-time booker is initializing...");
-
-    // Setup config.
     fs.createReadStream(process.env.CONFIG_FILE || 'config.toml', 
     'utf8').pipe(concat(function(data) {
-        CONFIG = toml.parse(data);
+        config = toml.parse(data);
     }));
-    await timeout(1400);
+    await wait(2000);
     var booking_date = new Date();
     var temp_date_str = strftime('%B %d, %Y', 
        new Date(booking_date.setDate(booking_date.getDate()
-        + CONFIG.booking.days_from_now))
+        + config.booking.days_from_now))
     );
     var split = temp_date_str.split(' ');
     var date_form_expecting = split[0].substring(0, 3) + " " + 
         (split[1].charAt(0)=="0" ? split[1].substring(1) : split[1]) + " " +
         split[2]; 
 
-    CONFIG.booking.date = date_form_expecting;
-    console.log("Will attempt to book", CONFIG.booking.number_of_players, "people at", 
-        CONFIG.booking.time, "on", CONFIG.booking.date);
+        config.booking.date = date_form_expecting;
+    console.log("Will attempt to book", config.booking.number_of_players, "people at", 
+            config.booking.time, "on", config.booking.date);
 
-    // Wait for tee times to become available.
+    return config;
+}
+
+async function wait_for_release_time(config) {
     var now = new Date();
     var millis_till_time = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 
-        CONFIG.schedule.start_booking_time_hour, 
-        CONFIG.schedule.start_booking_time_minute, 
-        CONFIG.schedule.start_booking_time_second, 0) - now;
+        config.schedule.start_booking_time_hour, 
+        config.schedule.start_booking_time_minute, 
+        config.schedule.start_booking_time_second, 0) - now;
     if (millis_till_time < 0) { millis_till_time += 86400000; }
+    
     console.log("Sleeping until specified start time...", millis_till_time, "ms.");
-    const wait = (timeToDelay) => new Promise((resolve) => setTimeout(resolve, timeToDelay));
     await wait(millis_till_time);
+}
 
-    // Start booking.
-    var is_headless = false;
-    var browser = await puppeteer.launch({headless: is_headless, args:['--no-sandbox']});
+async function launch_browser(config) {
+    var browser = await puppeteer.launch({headless: false, args:['--no-sandbox']});
     var page = await browser.newPage();
     console.log("Loading booking site...");
-    await page.goto(CONFIG.login.url);
-    
-    // Login.
+    await page.goto(config.login.url);
+    return page;
+}
+
+async function login_to_booking_system(config, page) {
     console.log("Logging in...");
     var member_number_input_form = await page.$('#id_username');
-    await member_number_input_form.type(CONFIG.login.member_number.toString());
+    await member_number_input_form.type(config.login.member_number.toString());
     var pass_form = await page.$('#id_password');
-    await pass_form.type(CONFIG.login.password);
+    await pass_form.type(config.login.password);
     await Promise.all(
        [
            page.click('input[type="submit"]'),
-            page.waitForNavigation()
+           page.waitForNavigation()
        ]
     ); 
     console.log("Logged in.");
-    
-    // Redirect to booking system...
+}
+
+async function redirect_to_link_line(page) {
     console.log("Loading tee time booking site...");
     var link = await page.$$('a[class="button white"]');
     await link[1].click();
-    await wait(15 * 1000);
-
-    while (1) { if ((await browser.pages()).length == is_headless ? 2 : 3) { break; } }
+    while ((await page.browser().pages()).length != 3) { }
     
-    var pages = await browser.pages();
+    var pages = await page.browser().pages();
     var link_line_page = pages[pages.length - 1];
+    await link_line_page.waitForSelector('#datePicker');
     await wait(3000);
 
-    // Enter the tee time details and search for times.
+    return link_line_page;
+}
+
+async function enter_preferred_tee_time_details(config, page) {
     console.log("Entering tee time details...");
 
-    await link_line_page.evaluate(() => {
+    await page.evaluate(() => {
         let dom = document.querySelector('#datePicker');
         dom.innerHTML = "";
     });
-    var date = await link_line_page.$('#datePicker');
-    await date.type(CONFIG.booking.date);
+    var date = await page.$('#datePicker');
+    await date.type(config.booking.date);
     
-    link_line_page.click('#homeClub');
+    page.click('#homeClub');
     await wait(2000);
     
-    var time_selector = await link_line_page.$('#criteriaTime');
-    await time_selector.select(CONFIG.booking.time);
+    var time_selector = await page.$('#criteriaTime');
+    await time_selector.select(config.booking.time);
     await wait(2000);
     
-    var time_selector = await link_line_page.$('#cmbPlayerCount');
-    await time_selector.select(CONFIG.booking.number_of_players.toString());
+    var time_selector = await page.$('#cmbPlayerCount');
+    await time_selector.select(config.booking.number_of_players.toString());
     await wait(3000);
+}
 
+async function search_for_tee_times(config, page) {
     console.log("Searching for the available times....");
-    link_line_page.click('#submitBrowse');
-    await wait(8000);
-    while (1) { if ((await link_line_page.$$('input[type="submit"]')).length > 1) { break; } }
+    page.click('#submitBrowse');
+    await page.waitForSelector('body > .bodycontent > .bodycontentbody > .gridblock12 > #searchResults > .grid12');
+    await wait(2000);
+    while (1) { if ((await page.$$('input[type="submit"]')).length > 1) { break; } }
     
-
-    const results_inner_html = await link_line_page.$eval(
+    // Double check we got the right date.
+    const results_inner_html = await page.$eval(
         'body > .bodycontent > .bodycontentbody > .gridblock12 > #searchResults > .grid12',
         (element) => {
             return element.innerHTML
     });
 
+    return results_inner_html.includes(config.booking.date);
+}
 
-    if (results_inner_html.includes(CONFIG.booking.date)) {
-        console.log("Found results for", CONFIG.booking.date);
-        // "Book Now"
-        console.log("Booking now..");
-        var book_buttons = await link_line_page.$$('input[type="submit"]');
-        console.log(book_buttons.length);
-        await Promise.all(
-            [
-                book_buttons[1].click(),
-                wait(9000)
-            ]
-        );
+async function book_tee_time(config, page) {
+    console.log("Booking now..");
+    var book_buttons = await page.$$('input[type="submit"]');
+    await book_buttons[1].click();
+    await page.waitForSelector('#book');
 
-        // "Finish Booking"
-        console.log("Finishing booking..");
-        var book_buttons = await link_line_page.$$('input[type="submit"]');
-        await Promise.all(
-            [
-                book_buttons[0].click(),
-                wait(6000)
-            ]
-        );
+    console.log("Finishing booking..");
+    var finish_booking = await page.$('#book');
+    await finish_booking.click();
+    console.log("Finishing boking!");
+    await wait(10000);
+}
+
+async function main() {
+    console.log("Tee-time booker is initializing...");
+
+    var config = await get_config();
+
+    await wait_for_release_time(config);
+
+    var page = await launch_browser(config);
+    
+    await login_to_booking_system(config, page);
+
+    var link_line_page = await redirect_to_link_line(page);
+
+    await enter_preferred_tee_time_details(config, link_line_page);
+
+    const found_tee_time = await search_for_tee_times(config, link_line_page);
+
+    if (found_tee_time) {    
+        console.log("Found results for", config.booking.date);
+        await book_tee_time(config, link_line_page);
     } else {
-        console.log("Something went wrong.");
-        console.log("Exiting....");
+        console.log("Could not find the specified tee time.");    
     }
 
+    console.log("Exiting....");
     await browser.close();
-})();
+}
+
+main();
