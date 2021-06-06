@@ -97,13 +97,15 @@ function timeout(ms) {
     
     var time_selector = await link_line_page.$('#cmbPlayerCount');
     await time_selector.select(CONFIG.booking.number_of_players.toString());
-    await link_line_page.waitFor(2000);
+    await link_line_page.waitFor(3000);
 
+    console.log("Searching for the available times....");
     link_line_page.click('#submitBrowse');
-    await link_line_page.waitFor(6000);
+    await link_line_page.waitFor(8000);
     
     // "Book Now"
     var book_buttons = await link_line_page.$$('input[type="submit"]');
+    console.log(book_buttons.length);
     await Promise.all(
         [
             book_buttons[1].click(),
