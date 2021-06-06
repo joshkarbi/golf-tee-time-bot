@@ -89,25 +89,25 @@ function timeout(ms) {
     await date.type(CONFIG.booking.date);
     
     link_line_page.click('#homeClub');
-    await link_line_page.waitFor(1000);
+    await link_line_page.waitFor(2000);
     
     var time_selector = await link_line_page.$('#criteriaTime');
     await time_selector.select(CONFIG.booking.time);
-    await link_line_page.waitFor(1000);
+    await link_line_page.waitFor(2000);
     
     var time_selector = await link_line_page.$('#cmbPlayerCount');
     await time_selector.select(CONFIG.booking.number_of_players.toString());
-    await link_line_page.waitFor(1000);
+    await link_line_page.waitFor(2000);
 
     link_line_page.click('#submitBrowse');
-    await link_line_page.waitFor(3000);
+    await link_line_page.waitFor(6000);
     
     // "Book Now"
     var book_buttons = await link_line_page.$$('input[type="submit"]');
     await Promise.all(
         [
             book_buttons[1].click(),
-            link_line_page.waitFor(3000)
+            link_line_page.waitFor(9000)
         ]
      );
 
@@ -116,7 +116,7 @@ function timeout(ms) {
     await Promise.all(
         [
             book_buttons[0].click(),
-            link_line_page.waitFor(3000)
+            link_line_page.waitFor(6000)
         ]
     );
 
