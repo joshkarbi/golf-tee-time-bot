@@ -75,55 +75,74 @@ function timeout(ms) {
     console.log("Loading tee time booking site...");
     var link = await page.$$('a[class="button white"]');
     await link[1].click();
+    await wait(15 * 1000);
 
     while (1) { if ((await browser.pages()).length == is_headless ? 2 : 3) { break; } }
     
     var pages = await browser.pages();
     var link_line_page = pages[pages.length - 1];
-    await link_line_page.waitFor(3000);
+    await wait(3000);
 
     // Enter the tee time details and search for times.
     console.log("Entering tee time details...");
 
+    await link_line_page.evaluate(() => {
+        let dom = document.querySelector('#datePicker');
+        dom.innerHTML = "";
+    });
     var date = await link_line_page.$('#datePicker');
     await date.type(CONFIG.booking.date);
     
     link_line_page.click('#homeClub');
-    await link_line_page.waitFor(2000);
+    await wait(2000);
     
     var time_selector = await link_line_page.$('#criteriaTime');
     await time_selector.select(CONFIG.booking.time);
-    await link_line_page.waitFor(2000);
+    await wait(2000);
     
     var time_selector = await link_line_page.$('#cmbPlayerCount');
     await time_selector.select(CONFIG.booking.number_of_players.toString());
-    await link_line_page.waitFor(3000);
+    await wait(3000);
 
     console.log("Searching for the available times....");
     link_line_page.click('#submitBrowse');
-    await link_line_page.waitFor(8000);
+    await wait(8000);
     while (1) { if ((await link_line_page.$$('input[type="submit"]')).length > 1) { break; } }
     
-    // "Book Now"
-    console.log("Booking now..");
-    var book_buttons = await link_line_page.$$('input[type="submit"]');
-    console.log(book_buttons.length);
-    await Promise.all(
-        [
-            book_buttons[1].click(),
-            link_line_page.waitFor(9000)
-        ]
-     );
 
-    // "Finish Booking"
-    console.log("Finishing booking..");
-    var book_buttons = await link_line_page.$$('input[type="submit"]');
-    await Promise.all(
-        [
-            book_buttons[0].click(),
-            link_line_page.waitFor(6000)
-        ]
-    );
+    const results_inner_html = await link_line_page.$eval(
+        'body > .bodycontent > .bodycontentbody > .gridblock12 > #searchResults > .grid12',
+        (element) => {
+            return element.innerHTML
+    });
+
+
+    if (results_inner_html.includes(CONFIG.booking.date)) {
+        console.log("Found results for", CONFIG.booking.date);
+        // "Book Now"
+        console.log("Booking now..");
+        var book_buttons = await link_line_page.$$('input[type="submit"]');
+        console.log(book_buttons.length);
+        await Promise.all(
+            [
+                book_buttons[1].click(),
+                wait(9000)
+            ]
+        );
+
+        // "Finish Booking"
+        console.log("Finishing booking..");
+        var book_buttons = await link_line_page.$$('input[type="submit"]');
+        await Promise.all(
+            [
+                book_buttons[0].click(),
+                wait(6000)
+            ]
+        );
+    } else {
+        console.log("Something went wrong.");
+        console.log("Exiting....");
+    }
 
     await browser.close();
 })();
