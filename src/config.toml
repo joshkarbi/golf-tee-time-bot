@@ -1,5 +1,10 @@
 title = "Example config file for this bot."
 
+[schedule]
+start_booking_time_hour = 10
+start_booking_time_minute = 40
+start_booking_time_second = 30
+
 [login]
 member_number = 123456
 password = "password123"

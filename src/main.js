@@ -36,12 +36,23 @@ function timeout(ms) {
         split[2]; 
 
     CONFIG.booking.date = date_form_expecting;
-    console.log("Attempting to book", CONFIG.booking.number_of_players, "people at", 
+    console.log("Will attempt to book", CONFIG.booking.number_of_players, "people at", 
         CONFIG.booking.time, "on", CONFIG.booking.date);
+
+    // Wait for tee times to become available.
+    var now = new Date();
+    var millis_till_time = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 
+        CONFIG.schedule.start_booking_time_hour, 
+        CONFIG.schedule.start_booking_time_minute, 
+        CONFIG.schedule.start_booking_time_second, 0) - now;
+    if (millis_till_time < 0) { millis_till_time += 86400000; }
+    console.log("Sleeping until specified start time...", millis_till_time, "ms.");
+    const wait = (timeToDelay) => new Promise((resolve) => setTimeout(resolve, timeToDelay));
+    await wait(millis_till_time);
 
     // Start booking.
     var is_headless = false;
-    var browser = await puppeteer.launch({headless: is_headless});
+    var browser = await puppeteer.launch({headless: is_headless, args:['--no-sandbox']});
     var page = await browser.newPage();
     console.log("Loading booking site...");
     await page.goto(CONFIG.login.url);
@@ -100,14 +111,14 @@ function timeout(ms) {
         ]
      );
 
-     // "Finish Booking"
-     var book_buttons = await link_line_page.$$('input[type="submit"]');
+    // "Finish Booking"
+    var book_buttons = await link_line_page.$$('input[type="submit"]');
     await Promise.all(
         [
             book_buttons[0].click(),
             link_line_page.waitFor(3000)
         ]
-     );
+    );
 
     await browser.close();
 })();

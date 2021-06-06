@@ -4,7 +4,8 @@
   "description": "",
   "main": "index.js",
   "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1"
+    "test": "echo \"Error: no test specified\" && exit 1",
+    "start": "export CONFIG_FILE=deploy.toml && node main.js"
   },
   "keywords": [],
   "author": "",
