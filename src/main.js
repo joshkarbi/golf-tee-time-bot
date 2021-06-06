@@ -102,8 +102,10 @@ function timeout(ms) {
     console.log("Searching for the available times....");
     link_line_page.click('#submitBrowse');
     await link_line_page.waitFor(8000);
+    while (1) { if ((await link_line_page.$$('input[type="submit"]')).length > 1) { break; } }
     
     // "Book Now"
+    console.log("Booking now..");
     var book_buttons = await link_line_page.$$('input[type="submit"]');
     console.log(book_buttons.length);
     await Promise.all(
@@ -114,6 +116,7 @@ function timeout(ms) {
      );
 
     // "Finish Booking"
+    console.log("Finishing booking..");
     var book_buttons = await link_line_page.$$('input[type="submit"]');
     await Promise.all(
         [
