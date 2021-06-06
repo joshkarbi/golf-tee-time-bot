@@ -72,18 +72,18 @@ async function login_to_booking_system(config, page) {
     console.log("Logged in.");
 }
 
-async function redirect_to_link_line(page) {
+async function redirect_to_scheduler(page) {
     console.log("Loading tee time booking site...");
     var link = await page.$$('a[class="button white"]');
     await link[1].click();
     while ((await page.browser().pages()).length != 3) { }
     
     var pages = await page.browser().pages();
-    var link_line_page = pages[pages.length - 1];
-    await link_line_page.waitForSelector('#datePicker');
+    var scheduler_page = pages[pages.length - 1];
+    await scheduler_page.waitForSelector('#datePicker');
     await wait(3000);
 
-    return link_line_page;
+    return scheduler_page;
 }
 
 async function enter_preferred_tee_time_details(config, page) {
@@ -149,15 +149,15 @@ async function main() {
     
     await login_to_booking_system(config, page);
 
-    var link_line_page = await redirect_to_link_line(page);
+    var scheduler_page = await redirect_to_scheduler(page);
 
-    await enter_preferred_tee_time_details(config, link_line_page);
+    await enter_preferred_tee_time_details(config, scheduler_page);
 
-    const found_tee_time = await search_for_tee_times(config, link_line_page);
+    const found_tee_time = await search_for_tee_times(config, scheduler_page);
 
     if (found_tee_time) {    
         console.log("Found results for", config.booking.date);
-        await book_tee_time(config, link_line_page);
+        await book_tee_time(config, scheduler_page);
     } else {
         console.log("Could not find the specified tee time.");    
     }
