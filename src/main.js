@@ -44,7 +44,7 @@ async function wait_for_release_time(config) {
         config.schedule.start_booking_time_minute, 
         config.schedule.start_booking_time_second, 0) - now;
     if (millis_till_time < 0) { millis_till_time += 86400000; }
-    
+
     console.log("Sleeping until specified start time...", millis_till_time, "ms.");
     await wait(millis_till_time);
 }
@@ -163,7 +163,7 @@ async function main() {
     }
 
     console.log("Exiting....");
-    await browser.close();
+    await page.browser().close();
 }
 
 main();
